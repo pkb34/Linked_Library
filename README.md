@@ -58,15 +58,6 @@ One `LinkedChain<T>` class stores three element types so far: `Book` (`catalog`,
 - **`LinkedChain` reuse:** the same tests on `LinkedChain<String>` and `LinkedChain<Book>`, plus null, bad index, remove-absent and empty-chain cases.
 - **Other:** `removePatron` when the patron has a hold, many identical copies with one removed, and menu input (`"abc"`, `"99"`, blank, 200 characters).
 
-### Who does what
-
-| Item | Owner |
-|---|---|
-| 1. Fix and complete `LibraryTest` | [name] |
-| 2. Undo and its tests | [name] |
-| 3. Sorted view and its tests | [name] |
-| 4. Faster traversal / `Iterator` | [name] |
-| 5. `LinkedChain` tests and stress test | [name] |
 
 ## Attribution
 
