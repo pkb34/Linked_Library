@@ -64,8 +64,8 @@ One `LinkedChain<T>` class stores three element types so far: `Book` (`catalog`,
 | File | Who worked on it | How |
 |---|---|---|
 | `LinkedChain.java` | Provided |
-| `Library.java` | [name] | [wrote / revised / reviewed / tested] |
-| `LibraryMenu.java` | [name] | [wrote / revised / reviewed / tested] |
+| `Library.java` | Shalin |Wrote |
+| `LibraryMenu.java` | Shalin | Wrote |
 | `LibraryMenuTest.java` | [name] | [wrote / revised / reviewed / tested] |
-| `LibraryApp.java` | [name] | [wrote / revised / reviewed / tested] |
+| `LibraryApp.java` | Shalin | Wrote |
 | `LibraryTest.java` | [name] | [wrote / revised / reviewed / tested] |
