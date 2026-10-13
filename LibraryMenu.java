@@ -1,3 +1,5 @@
+package LinkedLibrary;
+
 import java.util.Scanner;
 
 /**
@@ -64,16 +66,10 @@ public class LibraryMenu
         {
             case 1:
                 show(
-                    library.addBook(
-                        readText("Title: "),
-                        readText("Author: "),
-                        readText("Call number: ")));
+                    library.addBook(readText("Title: "), readText("Author: ")));
                 break;
             case 2:
-                show(
-                    library.addPatron(
-                        readText("Patron ID: "),
-                        readText("Name: ")));
+                show(library.addPatron(readText("Patron name: ")));
                 break;
             case 3:
                 checkOut();
@@ -81,14 +77,14 @@ public class LibraryMenu
             case 4:
                 show(
                     library.returnBook(
-                        readText("Patron ID: "),
+                        readText("Patron name: "),
                         readInt("Copy #: ", 1, Integer.MAX_VALUE)));
                 break;
             case 5:
                 show(
                     library.placeHold(
-                        readText("Patron ID: "),
-                        readText("Call number: ")));
+                        readText("Patron name: "),
+                        readText("Title: ")));
                 break;
             case 6:
                 printAll(
@@ -97,7 +93,7 @@ public class LibraryMenu
                 break;
             case 7:
                 printAll(
-                    library.sortedShelf(Book.BY_COPY_ID),
+                    library.sortedShelf(Book.BY_NUMBER),
                     "The shelf is empty.");
                 break;
             case 8:
@@ -112,7 +108,7 @@ public class LibraryMenu
                         .removeBook(readInt("Copy #: ", 1, Integer.MAX_VALUE)));
                 break;
             case 11:
-                show(library.removePatron(readText("Patron ID: ")));
+                show(library.removePatron(readText("Patron name: ")));
                 break;
             case 12:
                 show(library.advanceDays(readInt("Days: ", 1, 365)));
@@ -129,35 +125,29 @@ public class LibraryMenu
     /** Checkout, offering a hold if every copy is out. */
     private void checkOut()
     {
-        String id = readText("Patron ID: ");
-        String call = readText("Call number: ");
-        Outcome result = library.checkOut(id, call);
+        String id = readText("Patron name: ");
+        String title = readText("Title: ");
+        Outcome result = library.checkOut(id, title);
         show(result);
         if (result == Outcome.NONE_AVAILABLE
             && readYesNo("Place a hold instead? (y/n): "))
         {
-            show(library.placeHold(id, call));
+            show(library.placeHold(id, title));
         }
     }
 
 
     private void sortedShelf()
     {
-        int by = readInt("Sort by 1) title 2) author 3) call number: ", 1, 3);
+        int by = readInt("Sort by 1) title 2) author: ", 1, 2);
         if (by == 1)
         {
             printAll(library.sortedShelf(Book.BY_TITLE), "The shelf is empty.");
         }
-        else if (by == 2)
-        {
-            printAll(
-                library.sortedShelf(Book.BY_AUTHOR),
-                "The shelf is empty.");
-        }
         else
         {
             printAll(
-                library.sortedShelf(Book.BY_CALL_NUMBER),
+                library.sortedShelf(Book.BY_AUTHOR),
                 "The shelf is empty.");
         }
     }
@@ -165,16 +155,17 @@ public class LibraryMenu
 
     private void overdueReport()
     {
-        Loan[] late = library.overdueLoans();
+        Book[] late = library.overdueBooks();
         if (late.length == 0)
         {
             System.out.println("Nothing is overdue.");
         }
-        for (Loan loan : late)
+        for (Book book : late)
         {
             System.out.println(
-                loan + " (" + loan.daysLate(library.getToday())
-                    + " days late)");
+                book + " - " + library.borrowerOf(book.getCopyNumber())
+                    + ", due day " + book.getDueDay() + " ("
+                    + book.daysLate(library.getToday()) + " days late)");
         }
     }
 

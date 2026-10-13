@@ -1,3 +1,5 @@
+package LinkedLibrary;
+
 import java.util.Scanner;
 
 /** Starts the Linked Library program. */

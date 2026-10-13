@@ -1,283 +1,247 @@
-/**
- * Test class for LibraryMenu, with each input validation, prompt, 
- * and menu action separated into its own test method.
- */
-import java.util.Scanner; 
+package LinkedLibrary;
 
-public class LibraryMenuTest extends student.TestCase {
-  private Library library;
-  
-public void setUp() {
-        library = new Library();
-    }
+import static org.junit.Assert.*;
 
-public void testRun() {
-  setIn("0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.PrintStream;
+import java.util.Scanner;
 
-        menu.run();
-        assertContains(getLog(), "Goodbye.");
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
 
-  setIn("2\nP001\nAlice\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
+/** Tests for LibraryMenu and LibraryApp, using scripted input. */
+public class LibraryMenuTest
+{
+    private final PrintStream realOut = System.out;
+    private final InputStream realIn = System.in;
+    private ByteArrayOutputStream out;
+    private Library lib;
 
-        menu.run();
-
-        assertEquals(1, library.patronCount());
-        assertContains(getLog(), "Goodbye.");
-
-  setIn("7\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertContains(getLog(), "The shelf is empty.");
-        assertContains(getLog(), "Goodbye.");
-}
-
-  public void testHandle(){
-    setIn("1\nClean Code\nRobert Martin\nQA123\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(1, library.catalogSize());
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
-
-    setIn("2\nP001\nAlice\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(2, library.patronCount());
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
-
-    library.addBook("Clean Code", "Robert Martin", "QA123");
-        library.addPatron("P001", "Alice");
-
-       
-        setIn("3\nP001\nQA123\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(0, library.shelfSize());
-        assertEquals(1, library.borrowedCount("P001"));
-  }
-
-  public void testHandle_case4_returnBook() {
-        
-        library.addBook("Clean Code", "Robert Martin", "QA123");
-        library.addPatron("P001", "Alice");
-        library.checkOut("P001", "QA123");
-
-        
-        setIn("4\nP001\n1\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(1, library.shelfSize());
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
-    }
-
-    public void testHandle_case5_placeHold() {
-       
-        library.addBook("Clean Code", "Robert Martin", "QA123");
-        library.addPatron("P001", "Alice");
-        library.addPatron("P002", "Bob");
-        library.checkOut("P001", "QA123");
-
-        
-        setIn("5\nP002\nQA123\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(1, library.holdCount("QA123"));
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
-    }
-
-    public void testHandle_case6_searchNoMatches() {
-        g
-        setIn("6\nNonexistent\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertContains(getLog(), "No matches.");
-    }
-
-    public void testHandle_case6_searchWithMatches() {
-        library.addBook("Clean Code", "Robert Martin", "QA123");
-
-        
-        setIn("6\nMartin\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertContains(getLog(), "Clean Code");
-    }
-
-    public void testHandle_case7_showShelf() {
-        
-        setIn("7\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertContains(getLog(), "The shelf is empty.");
-    }
-
-    public void testHandle_case8_removeBook() {
-        library.addBook("Clean Code", "Robert Martin", "QA123");
-
-       
-        setIn("8\n1\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(0, library.catalogSize());
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
-    }
-
-    public void testHandle_case9_removePatron() {
-        library.addPatron("P001", "Alice");
-
-       
-        setIn("9\nP001\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-
-        assertEquals(0, library.patronCount());
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
+    @Before
+    public void setUp()
+    {
+        out = new ByteArrayOutputStream();
+        System.setOut(new PrintStream(out));
+        lib = new Library();
     }
 
 
-  public void testShelfEmpty() {
-    setIn("7\n0\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        menu.run();
-        assertContains(getLog(), "The shelf is empty.");
-  }
-
-  public void testReadInt_validDirect() {
-        setIn("5\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-        
-        int value = menu.readInt("Choice: ", 0, 9);
-        assertEquals(5, value);
-        assertContains(getLog(), "Choice: ");
-    }
-
-    public void testReadInt_repromptsOnInvalidFormat() {
-        setIn("abc\n15\n3\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        int value = menu.readInt("Choice: ", 0, 9);
-        assertEquals(3, value);
-        assertContains(getLog(), "Enter a whole number from 0 to 9.");
+    @After
+    public void tearDown()
+    {
+        System.setOut(realOut);
+        System.setIn(realIn);
     }
 
 
-    public void testReadText_validDirect() {
-        setIn("Clean Code\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
-
-        String text = menu.readText("Title: ");
-        assertEquals("Clean Code", text);
+    private LibraryMenu menu(String input)
+    {
+        return new LibraryMenu(lib, new Scanner(input));
     }
 
-    public void testReadText_repromptsOnBlank() {
-        setIn("   \nDesign Patterns\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
 
-        String text = menu.readText("Title: ");
-        assertEquals("Design Patterns", text);
-        assertContains(getLog(), "This can't be blank.");
+    private String output()
+    {
+        return out.toString();
     }
 
-    public void testReadText_repromptsOnTooLong() {
-        String longText = "a".repeat(105);
-        setIn(longText + "\nShort Title\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
 
-        String text = menu.readText("Title: ");
-        assertEquals("Short Title", text);
-        assertContains(getLog(), "Too long (max 100 characters).");
+    @Test(expected = IllegalArgumentException.class)
+    public void constructorRejectsNull()
+    {
+        new LibraryMenu(null, new Scanner(""));
     }
 
-    
-    public void testReadYesNo_trueForY() {
-        setIn("y\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
+    // ----- readInt -----
 
-        assertTrue(menu.readYesNo("Proceed? (y/n): "));
+
+    @Test
+    public void readIntAcceptsNumberInRange()
+    {
+        assertEquals(7, menu(" 7 \n").readInt("> ", 0, 9));
     }
 
-    public void testReadYesNo_falseForN() {
-        setIn("n\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
 
-        assertFalse(menu.readYesNo("Proceed? (y/n): "));
+    @Test
+    public void readIntRepromptsOnTextAndOutOfRange()
+    {
+        assertEquals(3, menu("abc\n99\n-1\n\n3\n").readInt("> ", 0, 9));
+        assertTrue(output().contains("Enter a whole number from 0 to 9."));
     }
 
-    public void testReadYesNo_repromptsOnInvalidInput() {
-        setIn("maybe\ny\n");
-        LibraryMenu menu = new LibraryMenu(library, new Scanner(systemIn()));
 
-        assertTrue(menu.readYesNo("Proceed? (y/n): "));
-        assertContains(getLog(), "Please enter y or n.");
-    }
-  
-public void testCheckOut() {
-
-        library.addBook("Clean Code", "Robert Martin", "QA123");
-        library.addPatron("P001", "Alice");
-        library.addPatron("P002", "Bob");
-
-        setIn("3\nP001\nQA123\n0\n");
-        LibraryMenu menu1 = new LibraryMenu(library, new Scanner(systemIn()));
-        menu1.run();
-        
-        assertEquals(0, library.shelfSize());
-        assertEquals(1, library.borrowedCount("P001"));
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
-
-
-        setIn("3\nP002\nQA123\nn\n0\n");
-        LibraryMenu menu2 = new LibraryMenu(library, new Scanner(systemIn()));
-        menu2.run();
-
-        assertContains(getLog(), Outcome.NONE_AVAILABLE.getMessage());
-        assertContains(getLog(), "Place a hold instead? (y/n): ");
-        assertEquals(0, library.holdCount("QA123"));
-
-  
-        setIn("3\nP002\nQA123\ny\n0\n");
-        LibraryMenu menu3 = new LibraryMenu(library, new Scanner(systemIn()));
-        menu3.run();
-
-        assertEquals(1, library.holdCount("QA123"));
-        assertContains(getLog(), Outcome.SUCCESS.getMessage());
+    @Test(expected = IllegalStateException.class)
+    public void readIntWithNoInputThrows()
+    {
+        menu("").readInt("> ", 0, 9);
     }
 
-  public void testShowShelf() {
-      
-        setIn("7\n0\n");
-        LibraryMenu menu1 = new LibraryMenu(library, new Scanner(systemIn()));
-        menu1.run();
-        assertContains(getLog(), "The shelf is empty.");
+    // ----- readText -----
 
-        library.addBook("Clean Code", "Robert Martin", "QA123");
-        setIn("7\n0\n");
-        LibraryMenu menu2 = new LibraryMenu(library, new Scanner(systemIn()));
-        menu2.run();
-        assertContains(getLog(), "Clean Code");
+
+    @Test
+    public void readTextTrims()
+    {
+        assertEquals("Dune", menu("  Dune  \n").readText("> "));
     }
-  
+
+
+    @Test
+    public void readTextRepromptsOnBlankAndTooLong()
+    {
+        String tooLong = "x".repeat(LibraryMenu.MAX_TEXT + 1);
+        assertEquals("ok", menu("   \n" + tooLong + "\nok\n").readText("> "));
+        assertTrue(output().contains("This can't be blank."));
+        assertTrue(output().contains("Too long"));
+    }
+
+
+    @Test
+    public void readTextKeepsSpecialCharacters()
+    {
+        assertEquals(
+            "\"Quotes\", commas & é",
+            menu("\"Quotes\", commas & é\n").readText("> "));
+    }
+
+    // ----- readYesNo -----
+
+
+    @Test
+    public void readYesNoAcceptsEitherCase()
+    {
+        assertTrue(menu("Y\n").readYesNo("> "));
+        assertFalse(menu("n\n").readYesNo("> "));
+    }
+
+
+    @Test
+    public void readYesNoRepromptsOnOtherText()
+    {
+        assertTrue(menu("maybe\n\ny\n").readYesNo("> "));
+        assertTrue(output().contains("Please enter y or n."));
+    }
+
+    // ----- run -----
+
+
+    @Test
+    public void runMvpPath()
+    {
+        String script = String.join(
+            "\n",
+            "2",
+            "Ana",
+            "2",
+            "Bo",
+            "1",
+            "The Hobbit",
+            "Tolkien",
+            "3",
+            "Ana",
+            "The Hobbit",
+            "3",
+            "Bo",
+            "the hobbit",
+            "y",
+            "4",
+            "Ana",
+            "1",
+            "6",
+            "hob",
+            "7",
+            "8",
+            "1",
+            "9",
+            "12",
+            "20",
+            "13",
+            "0",
+            "");
+        menu(script).run();
+        String text = output();
+        assertTrue(text.contains("Day 21"));
+        assertTrue(text.contains("- Ana, due day 15 (6 days late)"));
+        assertTrue(text.contains("No copies of that title are on the shelf."));
+        assertTrue(text.contains("The copy went to the next patron on hold."));
+        assertTrue(text.contains("#1 The Hobbit by Tolkien"));
+        assertTrue(text.contains("Goodbye."));
+        assertTrue(lib.hasBorrowed("Ana", 1));   // the return was undone
+    }
+
+
+    @Test
+    public void runSurvivesBadInput()
+    {
+        String script = String.join(
+            "\n",
+            "hello",
+            "42",
+            "-1",
+            "3",
+            "Nobody",
+            "The Hobbit",
+            "4",
+            "Ana",
+            "abc",
+            "1",
+            "9",
+            "10",
+            "5",
+            "11",
+            "Nobody",
+            "8",
+            "7",
+            "2",
+            "7",
+            "12",
+            "0",
+            "400",
+            "3",
+            "13",
+            "0",
+            "");
+        menu(script).run();
+        String text = output();
+        assertTrue(text.contains("Enter a whole number from 0 to 13."));
+        assertTrue(text.contains("Enter a whole number from 1 to 365."));
+        assertTrue(text.contains("Nothing is overdue."));
+        assertTrue(text.contains("Enter a whole number from 1 to 2."));
+        assertTrue(text.contains("Patron not found."));
+        assertTrue(text.contains("Nothing to undo."));
+        assertTrue(text.contains("Book not found."));
+        assertTrue(text.contains("The shelf is empty."));
+        assertTrue(text.contains("Goodbye."));
+    }
+
+
+    @Test
+    public void runEndsCleanlyWhenInputRunsOut()
+    {
+        menu("").run();
+        assertTrue(output().contains("Goodbye."));
+    }
+
+    // ----- LibraryApp -----
+
+
+    @Test
+    public void appMainStartsAndQuits()
+    {
+        System.setIn(new ByteArrayInputStream("0\n".getBytes()));
+        LibraryApp.main(new String[0]);
+        assertTrue(output().contains("Goodbye."));
+    }
+
+
+    @Test
+    public void appMainSurvivesGarbageThenEndOfInput()
+    {
+        System.setIn(new ByteArrayInputStream("garbage\n".getBytes()));
+        LibraryApp.main(null);
+        assertTrue(output().contains("Enter a whole number"));
+    }
 }

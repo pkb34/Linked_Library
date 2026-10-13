@@ -1,19 +1,21 @@
+package LinkedLibrary;
+
 import java.util.Comparator;
 
 /**
- * All library rules: books, patrons, checkouts, returns, holds, undo, sorting,
- * and due dates. Library owns every LinkedChain and uses them only through
- * their public methods. It never reads input or prints; it returns an Outcome
- * (or data) and LibraryMenu talks to the user. Invariant: every copy in the
- * catalog is in exactly one place, either on the shelf or on one patron's loan
- * list.
+ * All library rules: books, patrons, checkouts, returns, holds, undo, search,
+ * sorting, and due dates. Library owns every LinkedChain and uses them only
+ * through their public methods. It never reads input or prints; it returns an
+ * Outcome (or data) and LibraryMenu talks to the user. Invariant: every copy in
+ * the catalog is in exactly one place, either on the shelf or in one patron's
+ * borrowed list.
  */
 public class Library
 {
-    /** Days a checkout lasts. */
-    public static final int LOAN_DAYS = 14;
     /** How many actions undo remembers. */
     public static final int HISTORY_LIMIT = 10;
+    /** How many days a checkout lasts. */
+    public static final int LOAN_DAYS = 14;
 
     private final LinkedChain<Book> catalog;       // every copy owned
     private final LinkedChain<Book> shelf;         // copies available now
@@ -22,8 +24,7 @@ public class Library
     private final LinkedChain<Action> history;     // front = newest
     private int nextCopyId;
     private int nextHoldNumber;
-    private int nextActionNumber;
-    private int today;
+    private int today;   // the library's day counter, starts at day 1
 
     public Library()
     {
@@ -34,7 +35,6 @@ public class Library
         history = new LinkedChain<Action>();
         nextCopyId = 1;
         nextHoldNumber = 1;
-        nextActionNumber = 1;
         today = 1;
     }
 
@@ -45,14 +45,13 @@ public class Library
      * Adds a new copy. If someone is waiting for that title, the copy goes
      * straight to the earliest hold; otherwise it goes on the shelf.
      */
-    public Outcome addBook(String title, String author, String callNumber)
+    public Outcome addBook(String title, String author)
     {
-        if (Book.isBlank(title) || Book.isBlank(author)
-            || Book.isBlank(callNumber))
+        if (Book.isBlank(title) || Book.isBlank(author))
         {
             return Outcome.INVALID_INPUT;
         }
-        Book book = new Book(title, author, callNumber, nextCopyId++);
+        Book book = new Book(title, author, nextCopyId++);
         catalog.add(book);
         HoldRequest filled = placeCopy(book);
         record(ActionType.ADD_BOOK, book, null, 0, filled);
@@ -61,9 +60,9 @@ public class Library
 
 
     /** Removes a copy that is on the shelf. Checked-out copies are refused. */
-    public Outcome removeBook(int copyId)
+    public Outcome removeBook(int copyNumber)
     {
-        Book book = findCopy(copyId);
+        Book book = findCopy(copyNumber);
         if (book == null)
         {
             return Outcome.BOOK_NOT_FOUND;
@@ -81,26 +80,26 @@ public class Library
     // ----- patrons -----
 
 
-    /** Adds a member. IDs must be unique; names may repeat. */
-    public Outcome addPatron(String patronId, String name)
+    /** Adds a member. Names must be unique (ignoring case). */
+    public Outcome addPatron(String name)
     {
-        if (Book.isBlank(patronId) || Book.isBlank(name))
+        if (Book.isBlank(name))
         {
             return Outcome.INVALID_INPUT;
         }
-        if (findPatron(patronId) != null)
+        if (findPatron(name) != null)
         {
-            return Outcome.DUPLICATE_ID;
+            return Outcome.DUPLICATE_NAME;
         }
-        patrons.add(new Patron(patronId, name));
+        patrons.add(new Patron(name));
         return Outcome.SUCCESS;
     }
 
 
-    /** Removes a member with no loans and no holds. */
-    public Outcome removePatron(String patronId)
+    /** Removes a member with no checkouts and no holds. */
+    public Outcome removePatron(String name)
     {
-        Patron patron = findPatron(patronId);
+        Patron patron = findPatron(name);
         if (patron == null)
         {
             return Outcome.PATRON_NOT_FOUND;
@@ -119,28 +118,26 @@ public class Library
 
 
     /** Moves any shelved copy of the title to the patron. */
-    public Outcome checkOut(String patronId, String callNumber)
+    public Outcome checkOut(String name, String title)
     {
-        Patron patron = findPatron(patronId);
+        Patron patron = findPatron(name);
         if (patron == null)
         {
             return Outcome.PATRON_NOT_FOUND;
         }
-        if (!titleExists(callNumber))
+        if (!titleExists(title))
         {
             return Outcome.BOOK_NOT_FOUND;
         }
-        String call = callNumber.trim();
-        Book copy =
-            ChainTools.findFirst(shelf, b -> b.getCallNumber().equals(call));
+        Book copy = ChainTools.findFirst(shelf, b -> b.hasTitle(title));
         if (copy == null)
         {
             return Outcome.NONE_AVAILABLE;
         }
-        int due = today + LOAN_DAYS;
         shelf.remove(copy);
-        patron.borrow(copy, due);
-        record(ActionType.CHECKOUT, copy, patron, due, null);
+        patron.borrow(copy);
+        copy.setDueDay(today + LOAN_DAYS);
+        record(ActionType.CHECKOUT, copy, patron, 0, null);
         return Outcome.SUCCESS;
     }
 
@@ -149,48 +146,46 @@ public class Library
      * Takes a copy back from the patron. If anyone is waiting for that title,
      * the copy goes to the earliest hold; otherwise to the shelf.
      */
-    public Outcome returnBook(String patronId, int copyId)
+    public Outcome returnBook(String name, int copyNumber)
     {
-        Patron patron = findPatron(patronId);
+        Patron patron = findPatron(name);
         if (patron == null)
         {
             return Outcome.PATRON_NOT_FOUND;
         }
-        Book book = findCopy(copyId);
+        Book book = findCopy(copyNumber);
         if (book == null)
         {
             return Outcome.BOOK_NOT_FOUND;
         }
-        Loan loan = patron.giveBack(book);
-        if (loan == null)
+        if (!patron.giveBack(book))
         {
             return Outcome.NOT_BORROWED;
         }
+        int oldDueDay = book.getDueDay();
         HoldRequest filled = placeCopy(book);
-        record(ActionType.RETURN, book, patron, loan.getDueDay(), filled);
+        record(ActionType.RETURN, book, patron, oldDueDay, filled);
         return filled == null ? Outcome.SUCCESS : Outcome.ASSIGNED_TO_HOLD;
     }
 
 
     /** Adds the patron to a title's waiting list when no copy is shelved. */
-    public Outcome placeHold(String patronId, String callNumber)
+    public Outcome placeHold(String name, String title)
     {
-        Patron patron = findPatron(patronId);
+        Patron patron = findPatron(name);
         if (patron == null)
         {
             return Outcome.PATRON_NOT_FOUND;
         }
-        if (!titleExists(callNumber))
+        if (!titleExists(title))
         {
             return Outcome.BOOK_NOT_FOUND;
         }
-        String call = callNumber.trim();
-        if (ChainTools
-            .findFirst(shelf, b -> b.getCallNumber().equals(call)) != null)
+        if (ChainTools.findFirst(shelf, b -> b.hasTitle(title)) != null)
         {
             return Outcome.BOOK_AVAILABLE;
         }
-        HoldRequest request = new HoldRequest(patron, call, nextHoldNumber);
+        HoldRequest request = new HoldRequest(patron, title, nextHoldNumber);
         if (holds.contains(request))
         {
             return Outcome.ALREADY_ON_HOLD;
@@ -222,25 +217,26 @@ public class Library
     private boolean reverse(Action a)
     {
         Book book = a.getBook();
+        Patron patron = a.getPatron();
         HoldRequest hold = a.getFilledHold();
         switch (a.getType())
         {
             case CHECKOUT:
-                if (!patrons.contains(a.getPatron())
-                    || !a.getPatron().hasBorrowed(book))
+                if (!patrons.contains(patron) || !patron.hasBorrowed(book))
                 {
                     return false;
                 }
-                a.getPatron().giveBack(book);
+                patron.giveBack(book);
                 placeCopy(book);
                 return true;
             case RETURN:
-                if (!patrons.contains(a.getPatron()) || !canRecall(book, hold))
+                if (!patrons.contains(patron) || !canRecall(book, hold))
                 {
                     return false;
                 }
                 recall(book, hold);
-                a.getPatron().borrow(book, a.getDueDay());
+                patron.borrow(book);
+                book.setDueDay(a.getDueDay());
                 return true;
             case ADD_BOOK:
                 if (!canRecall(book, hold))
@@ -295,11 +291,10 @@ public class Library
         ActionType type,
         Book book,
         Patron patron,
-        int due,
+        int dueDay,
         HoldRequest filled)
     {
-        history.add(
-            new Action(nextActionNumber++, type, book, patron, due, filled));
+        history.add(new Action(type, book, patron, dueDay, filled));
         if (history.size() > HISTORY_LIMIT)
         {
             history.remove(history.get(history.size() - 1));
@@ -309,7 +304,7 @@ public class Library
     // ----- due dates (stretch goal) -----
 
 
-    /** Moves the library's clock forward. */
+    /** Moves the library's day counter forward. */
     public Outcome advanceDays(int days)
     {
         if (days < 1)
@@ -327,28 +322,34 @@ public class Library
     }
 
 
-    /** Every late loan, most days late first. */
-    public Loan[] overdueLoans()
+    /** Every late copy, most days late first (ties by copy number). */
+    public Book[] overdueBooks()
     {
-        LinkedChain<Loan> late = new LinkedChain<Loan>();
-        for (Object o : ChainTools.snapshot(patrons))
-        {
-            for (Object l : ChainTools
-                .snapshot(((Patron)o).overdueLoans(today)))
-            {
-                late.add((Loan)l);
-            }
-        }
+        LinkedChain<Book> late =
+            ChainTools.findAll(catalog, b -> b.daysLate(today) > 0);
         Object[] sorted = ChainTools.sortedSnapshot(
             late,
-            Comparator.comparingInt((Loan l) -> -l.daysLate(today))
-                .thenComparingInt(l -> l.getBook().getCopyId()));
-        Loan[] result = new Loan[sorted.length];
+            Comparator.comparingInt((Book b) -> -b.daysLate(today))
+                .thenComparing(Book.BY_NUMBER));
+        Book[] result = new Book[sorted.length];
         for (int i = 0; i < sorted.length; i++)
         {
-            result[i] = (Loan)sorted[i];
+            result[i] = (Book)sorted[i];
         }
         return result;
+    }
+
+
+    /** The name of whoever has the copy, or null if nobody does. */
+    public String borrowerOf(int copyNumber)
+    {
+        Book book = findCopy(copyNumber);
+        if (book == null)
+        {
+            return null;
+        }
+        Patron who = ChainTools.findFirst(patrons, p -> p.hasBorrowed(book));
+        return who == null ? null : who.getName();
     }
 
     // ----- queries (no state changes) -----
@@ -363,7 +364,7 @@ public class Library
 
     /**
      * A sorted copy of the shelf. The shelf itself is not reordered.
-     * Book.BY_COPY_ID gives arrival order.
+     * Book.BY_NUMBER gives arrival order.
      *
      * @throws IllegalArgumentException
      *             if order is null
@@ -381,39 +382,33 @@ public class Library
 
 
     /** Number of patrons waiting for a title. */
-    public int holdCount(String callNumber)
+    public int holdCount(String title)
     {
-        if (Book.isBlank(callNumber))
-        {
-            return 0;
-        }
-        String call = callNumber.trim();
-        return ChainTools.findAll(holds, h -> h.getCallNumber().equals(call))
-            .size();
+        return ChainTools.findAll(holds, h -> h.isFor(title)).size();
     }
 
 
     /** True if the copy is on the shelf. */
-    public boolean isOnShelf(int copyId)
+    public boolean isOnShelf(int copyNumber)
     {
-        Book book = findCopy(copyId);
+        Book book = findCopy(copyNumber);
         return book != null && shelf.contains(book);
     }
 
 
-    /** True if the patron has that copy on loan. */
-    public boolean hasBorrowed(String patronId, int copyId)
+    /** True if the patron has that copy checked out. */
+    public boolean hasBorrowed(String name, int copyNumber)
     {
-        Patron patron = findPatron(patronId);
-        Book book = findCopy(copyId);
+        Patron patron = findPatron(name);
+        Book book = findCopy(copyNumber);
         return patron != null && book != null && patron.hasBorrowed(book);
     }
 
 
     /** Copies a patron has out, or -1 if the patron does not exist. */
-    public int borrowedCount(String patronId)
+    public int borrowedCount(String name)
     {
-        Patron patron = findPatron(patronId);
+        Patron patron = findPatron(name);
         return patron == null ? -1 : patron.borrowedCount();
     }
 
@@ -445,32 +440,35 @@ public class Library
 
 
     /**
-     * Gives a copy to the earliest hold for its title, else shelves it.
+     * Gives a copy to the earliest hold for its title (with a fresh due day),
+     * else shelves it (due day cleared).
      *
      * @return the hold that was filled, or null if the copy was shelved
      */
     private HoldRequest placeCopy(Book book)
     {
-        HoldRequest next = earliestHold(book.getCallNumber());
+        HoldRequest next = earliestHold(book.getTitle());
         if (next == null)
         {
+            book.setDueDay(0);
             shelf.add(book);
             return null;
         }
         holds.remove(next);
-        next.getPatron().borrow(book, today + LOAN_DAYS);
+        next.getPatron().borrow(book);
+        book.setDueDay(today + LOAN_DAYS);
         return next;
     }
 
 
     /** Lowest sequence number among holds for a title, or null. */
-    private HoldRequest earliestHold(String callNumber)
+    private HoldRequest earliestHold(String title)
     {
         HoldRequest best = null;
         for (Object o : ChainTools.snapshot(holds))
         {
             HoldRequest h = (HoldRequest)o;
-            if (h.getCallNumber().equals(callNumber)
+            if (h.isFor(title)
                 && (best == null || h.getSequence() < best.getSequence()))
             {
                 best = h;
@@ -480,31 +478,21 @@ public class Library
     }
 
 
-    private Patron findPatron(String patronId)
+    private Patron findPatron(String name)
     {
-        if (Book.isBlank(patronId))
-        {
-            return null;
-        }
-        String id = patronId.trim();
-        return ChainTools.findFirst(patrons, p -> p.getId().equals(id));
+        return ChainTools.findFirst(patrons, p -> p.hasName(name));
     }
 
 
-    private Book findCopy(int copyId)
+    private Book findCopy(int copyNumber)
     {
-        return ChainTools.findFirst(catalog, b -> b.getCopyId() == copyId);
-    }
-
-
-    private boolean titleExists(String callNumber)
-    {
-        if (Book.isBlank(callNumber))
-        {
-            return false;
-        }
-        String call = callNumber.trim();
         return ChainTools
-            .findFirst(catalog, b -> b.getCallNumber().equals(call)) != null;
+            .findFirst(catalog, b -> b.getCopyNumber() == copyNumber);
+    }
+
+
+    private boolean titleExists(String title)
+    {
+        return ChainTools.findFirst(catalog, b -> b.hasTitle(title)) != null;
     }
 }
