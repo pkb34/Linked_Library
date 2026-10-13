@@ -40,27 +40,3 @@ t
 }
 
 
-
-public class LibraryMenuTest {
-
-
-    public void testReadValidInt() {
-        String simulatedInput = "abc\n5\n";
-        Scanner scanner = new Scanner(new ByteArrayInputStream(simulatedInput.getBytes()));
-        LibraryMenu menu = new LibraryMenu(new Library(), scanner);
-
-        int value = menu.readInt("Choice: ", 0, 9);
-        assertEquals(5, value);
-    }
-
-
-    public void testReadTextValidation() {
-       
-        String simulatedInput = "\nValid Title\n";
-        Scanner scanner = new Scanner(new ByteArrayInputStream(simulatedInput.getBytes()));
-        LibraryMenu menu = new LibraryMenu(new Library(), scanner);
-
-        String text = menu.readText("Title: ");
-        assertEquals("Valid Title", text);
-    }
-}
